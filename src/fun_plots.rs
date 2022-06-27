@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 pub mod fun_plots {
     fn mand_op(a: f64, b: f64, n: i64) -> Option<(f64, f64)> {
         let c_re = a;
@@ -59,9 +60,9 @@ pub mod fun_plots {
         }
         y.into_iter().zip(x).collect()
     }
-    pub fn perk_sq_new() -> Vec<(f64,f64)> {
-        use rand::{seq::SliceRandom, thread_rng};
-        const M: usize = 40;
+    pub fn perk_sq_new() -> Vec<(f64, f64)> {
+        use rand::{rngs::SmallRng, seq::SliceRandom, SeedableRng};
+        const M: usize = 50;
         #[derive(Copy, Clone, Debug)]
         struct Forest {
             parent: usize,
@@ -69,7 +70,7 @@ pub mod fun_plots {
             rank: usize,
         }
         impl Forest {
-            fn makenew(xn: usize) -> Forest {
+            fn new(xn: usize) -> Forest {
                 Forest {
                     parent: xn,
                     x: xn,
@@ -86,11 +87,11 @@ pub mod fun_plots {
                 // Zwraca "najstarszego przodka" instancji
                 tree[self.x]
             }
-    
+
             fn union(x: Forest, y: Forest, tree: &mut [Forest; M.pow(2)]) {
                 let mut x = x.find(tree);
                 let mut y = y.find(tree);
-    
+
                 // x i y mają tą samą wartość, czyli prawdopodobnie są nawet tą samą instancją. Nie robimy nic
                 if x.x == y.x {}
                 // sortowanie według rangi - czy pierwszy, czy drugi argument zostanie rodzicem
@@ -112,10 +113,6 @@ pub mod fun_plots {
                 tree[y.x] = y;
             }
         }
-        /*fn Board() -> [[usize; M]; M] {
-            let brd = [[0; M]; M];
-            brd
-        }*/
         fn pair_to_index(i: usize, j: usize) -> usize {
             j + i * M
         }
@@ -124,8 +121,7 @@ pub mod fun_plots {
             let i = id / M;
             (i, j)
         }
-        fn random_con(l: &mut Vec<usize>) -> usize {
-            l.shuffle(&mut thread_rng());
+        fn pick_from(l: &mut Vec<usize>) -> usize {
             let sample = l.pop();
             //println!("{}", sample.unwrap());
             sample.unwrap()
@@ -153,34 +149,39 @@ pub mod fun_plots {
         }
         fn perk_it(list: [usize; M.pow(2)]) -> usize {
             let mut blist = list.to_vec();
-            let mut trees = [Forest::makenew(M.pow(3)); M.pow(2) as usize];
+            blist.shuffle(&mut SmallRng::from_entropy());
+            let mut trees = [Forest::new(M.pow(3)); M.pow(2) as usize];
             let mut first_row = Vec::new();
             let mut last_row = Vec::new();
             let mut counter: usize = 0;
             let mut breaker = false;
-            let muttrees = &mut trees;
+            let mut_trees = &mut trees;
             loop {
-                let sample = random_con(&mut blist);
-                muttrees[sample] = Forest::makenew(sample);
+                let sample = pick_from(&mut blist);
+                mut_trees[sample] = Forest::new(sample);
                 if sample < M {
                     first_row.push(sample);
                     // bez tego symulacja się partoli. Jest tu po to, żeby przypadkiem nie wyszło, że jakaś
                     // instancja klasy odpowiadająca elementowi z rzędu i = 1 (czyli drugiego) nie miała
                     // wyższej rangi niż instancja odpow. elementowi z rzędu i = 0 (pierwszego) i nie
                     // "przyciągała" do siebie innych instancji jako "dzieci", zanim może to zrobić wartość z góry
-                    muttrees[sample].rank += M.pow(2);
+                    mut_trees[sample].rank += M.pow(2);
                 } else if sample >= M * (M - 1) {
                     last_row.push(sample)
                 }
                 for &id in &sasiadv2(sample) {
-                    if muttrees[id].x <= M.pow(2) {
-                        Forest::union(muttrees[sample], muttrees[id], muttrees);
+                    if mut_trees[id].x <= M.pow(2) {
+                        Forest::union(
+                            mut_trees[sample],
+                            mut_trees[id],
+                            mut_trees,
+                        );
                         //println!("{:?} {:?}", trees[sample], trees[id])
                     }
                 }
                 for &id2 in &last_row {
                     for &id in &first_row {
-                        if id == muttrees[id2].find(muttrees).x {
+                        if id == mut_trees[id2].find(mut_trees).x {
                             breaker = true;
                             // println!("Perkolacja!")
                             break;
@@ -199,17 +200,21 @@ pub mod fun_plots {
         }
         let mut sampler = [0f64; M.pow(2)];
         let mut new_counter = [0f64; M.pow(2)];
-        for j in 0..M.pow(2) {
+        (0..M.pow(2)).for_each(|j| {
             new_counter[j] = 100.0 * j as f64 / (M.pow(2) as f64);
-        }
-        for _i in 0..1000 {
+        });
+        for _i in 0..10000 {
             let temp = perk_it(blist);
-            for j in 0..M.pow(2) {
+            (0..M.pow(2)).for_each(|j| {
                 if j >= temp {
                     sampler[j] += 1f64;
                 }
-            }
+            })
         }
-        new_counter.to_vec().into_iter().zip(sampler.to_vec()).collect()
+        new_counter
+            .to_vec()
+            .into_iter()
+            .zip(sampler.to_vec())
+            .collect()
     }
 }
