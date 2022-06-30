@@ -39,7 +39,19 @@ fn main() -> std::io::Result<()> {
     //let my_data = perk_sq_new();
     let plotter = scatter!("Mandelbrot set", "Re", "Im", my_data,);
     write_to_file!(
-        "/home/kartonrealista/Pictures/mandpl.svg",
-        poloto::disp(|w| plotter.simple_theme(w))
+        "mandpl.svg",
+        poloto::disp(|w| {
+
+            write!(
+                w,
+                "{}<style>{}{}</style>{}{}",
+                poloto::simple_theme::SVG_HEADER,
+                poloto::simple_theme::STYLE_CONFIG_DARK_DEFAULT,
+                ".poloto_scatter{stroke-width:0.5}",
+                poloto::disp(|a| plotter.render(a)),
+                poloto::simple_theme::SVG_END
+            )
+            //plotter.simple_theme(w)
+        })
     )
 }
